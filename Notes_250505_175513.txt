@@ -1,0 +1,99 @@
+import ldap from 'ldapjs';
+import oracledb from 'oracledb';
+
+// 1. LDAP Configuration (Replace with your details)
+const ldapUrl = 'ldap://ldap.example.com:389'; // Replace with your LDAP server details
+const ldapUsername = 'uid=johndoe,ou=users,dc=company,dc=com'; // Full DN or username for authentication
+const ldapPassword = 'user-password'; // User password for authentication
+const baseDN = 'dc=company,dc=com'; // Base DN for the LDAP search
+
+// 2. Oracle Database Configuration (Replace with your details)
+const oracleDbUsername = 'oracle-username'; // Oracle Database username
+const oracleDbPassword = 'oracle-password'; // Oracle Database password
+const connectString = 'localhost:1521/ORCL'; // Oracle database connection string (hostname:port/sid or service name)
+
+async function authenticateWithLdap() {
+  return new Promise((resolve, reject) => {
+    // Create the LDAP client
+    const client = ldap.createClient({
+      url: ldapUrl,
+    });
+
+    // Bind (authenticate) to the LDAP server
+    client.bind(ldapUsername, ldapPassword, (err) => {
+      if (err) {
+        reject('Failed to bind to LDAP server: ' + err);
+        return;
+      }
+      console.log('Successfully authenticated with LDAP.');
+
+      // Perform the LDAP search after successful bind
+      const opts = {
+        filter: '(objectClass=person)', // Example filter
+        scope: 'sub', // Search scope (subtree)
+        attributes: ['dn', 'cn', 'email'], // Attributes to retrieve
+      };
+
+      client.search(baseDN, opts, (err, res) => {
+        if (err) {
+          reject('LDAP Search error: ' + err);
+          return;
+        }
+
+        res.on('searchEntry', (entry) => {
+          console.log('LDAP entry found: ', entry.object);
+        });
+
+        res.on('end', (result) => {
+          if (result.status === 0) {
+            resolve(true); // Successfully completed LDAP search
+          } else {
+            reject('LDAP search failed with status: ' + result.status);
+          }
+          client.unbind(); // Unbind (close the connection)
+        });
+      });
+    });
+  });
+}
+
+async function connectToOracle() {
+  try {
+    // Establish the connection to the Oracle Database
+    const connection = await oracledb.getConnection({
+      user: oracleDbUsername,
+      password: oracleDbPassword,
+      connectString: connectString,
+    });
+
+    console.log('Successfully connected to Oracle Database.');
+
+    // Example query to retrieve data from a table (e.g., user details)
+    const result = await connection.execute('SELECT * FROM users WHERE username = :username', ['johndoe']);
+    console.log('Oracle DB Query result: ', result.rows); // Prints the query result
+
+    // Close the connection
+    await connection.close();
+  } catch (err) {
+    console.error('Error connecting to Oracle Database:', err);
+  }
+}
+
+async function authenticateAndConnect() {
+  try {
+    // Step 1: Authenticate the user via LDAP
+    const isAuthenticated = await authenticateWithLdap();
+    
+    if (isAuthenticated) {
+      console.log('User is authenticated via LDAP.');
+
+      // Step 2: If authentication succeeds, connect to Oracle Database
+      await connectToOracle();
+    }
+  } catch (err) {
+    console.error('Error in authentication or database connection:', err);
+  }
+}
+
+// Call the function to authenticate and connect
+authenticateAndConnect();
