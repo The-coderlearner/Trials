@@ -1,0 +1,21 @@
+function convertToJson(keys: string[], values: string[]): { [key: string]: string } {
+  if (keys.length !== values.length) {
+    throw new Error("Keys and values arrays must have the same length");
+  }
+
+  const jsonObject: { [key: string]: string } = {};
+
+  // Loop through the arrays and create key-value pairs in the JSON object
+  for (let i = 0; i < keys.length; i++) {
+    jsonObject[keys[i]] = values[i];
+  }
+
+  return jsonObject;
+}
+
+// Example Usage:
+const keys = ['name', 'age', 'city'];
+const values = ['John', '30', 'New York'];
+
+const result = convertToJson(keys, values);
+console.log(result);
