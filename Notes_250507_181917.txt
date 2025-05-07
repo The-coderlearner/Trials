@@ -1,0 +1,55 @@
+const jdbc = require('jdbc');
+const jinst = require('jdbc/lib/jinst');
+
+// Path to the Oracle JDBC driver (ojdbc8.jar)
+const driverPath = 'C:/path/to/ojdbc8.jar';  // Update this path
+
+if (!jinst.isInitialized()) {
+    jinst.init(process.env.JAVA_HOME, driverPath);  // Ensure JAVA_HOME is set in environment variables
+}
+
+const jdbcInstance = new jdbc({
+    url: 'jdbc:oracle:thin:@ldap://your_ldap_host:your_ldap_port/your_service_name',
+    drivername: 'oracle.jdbc.OracleDriver',
+    minpoolsize: 10,
+    maxpoolsize: 100,
+    properties: {
+        user: 'your_username',
+        password: 'your_password'
+    }
+});
+
+jdbcInstance.initialize(function(err) {
+    if (err) {
+        console.error('Error initializing JDBC:', err);
+        return;
+    }
+
+    jdbcInstance.open(function(err, conn) {
+        if (err) {
+            console.error('Error connecting to Oracle DB:', err);
+            return;
+        }
+
+        conn.createStatement(function(err, statement) {
+            if (err) {
+                console.error('Error creating statement:', err);
+                return;
+            }
+
+            statement.executeQuery('SELECT * FROM your_table', function(err, result) {
+                if (err) {
+                    console.error('Error executing query:', err);
+                } else {
+                    console.log('Query Result:', result);
+                }
+
+                conn.close(function(err) {
+                    if (err) {
+                        console.error('Error closing connection:', err);
+                    }
+                });
+            });
+        });
+    });
+});
