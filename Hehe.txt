@@ -1,0 +1,65 @@
+import json
+import asyncio
+from playwright.async_api import async_playwright
+
+async def run():
+    glossary_data = {}
+    letters = ['0-9'] + [chr(i) for i in range(65, 91)]  # '0-9', 'A' to 'Z'
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=False)  # Set headless=True to run silently
+        page = await browser.new_page()
+
+        # Step 1: Search on Google
+        await page.goto("https://www.google.com")
+        await page.fill("input[name='q']", "site:example.com glossary")  # Adjust query as needed
+        await page.keyboard.press("Enter")
+        await page.wait_for_selector("h3")
+
+        # Step 2: Click the first result
+        first_result = await page.query_selector("h3")
+        await first_result.click()
+        await page.wait_for_load_state("domcontentloaded")
+
+        # Step 3: Click the 'Glossary' link
+        try:
+            glossary_link = await page.wait_for_selector("a:text('Glossary')", timeout=5000)
+            await glossary_link.click()
+        except:
+            print("Glossary link not found.")
+            await browser.close()
+            return
+
+        await page.wait_for_load_state("domcontentloaded")
+
+        # Step 4: Loop through A-Z and 0-9
+        for letter in letters:
+            try:
+                link = await page.query_selector(f"a:text('{letter}')")
+                if link:
+                    await link.click()
+                    await page.wait_for_timeout(1000)
+
+                    # Adjust these selectors based on the actual site
+                    terms = await page.query_selector_all(".term")  # Example class
+                    definitions = await page.query_selector_all(".definition")  # Example class
+
+                    glossary_data[letter] = []
+                    for t, d in zip(terms, definitions):
+                        term_text = await t.inner_text()
+                        def_text = await d.inner_text()
+                        glossary_data[letter].append({
+                            "term": term_text.strip(),
+                            "definition": def_text.strip()
+                        })
+            except Exception as e:
+                print(f"Error processing {letter}: {e}")
+
+        await browser.close()
+
+        # Save to JSON
+        with open("glossary.json", "w", encoding="utf-8") as f:
+            json.dump(glossary_data, f, ensure_ascii=False, indent=2)
+
+# Run the async function
+asyncio.run(run())
