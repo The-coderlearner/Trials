@@ -1,0 +1,58 @@
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import time
+import json
+
+# Set up Selenium WebDriver (you can also use Firefox or Edge)
+driver = webdriver.Chrome()
+
+# Step 1: Search
+driver.get("https://www.google.com")
+search_box = driver.find_element(By.NAME, "q")
+search_box.send_keys("site:example.com glossary")  # Replace with your real query
+search_box.send_keys(Keys.RETURN)
+
+# Step 2: Click first search result
+time.sleep(2)
+first_result = driver.find_elements(By.CSS_SELECTOR, 'h3')[0]
+first_result.click()
+
+# Step 3: Find and click "Glossary"
+time.sleep(3)
+glossary_link = driver.find_element(By.PARTIAL_LINK_TEXT, "Glossary")
+glossary_link.click()
+
+# Step 4: Extract glossary data for each letter
+time.sleep(2)
+glossary_data = {}
+
+# Define the letters/numbers to iterate
+alphabet = ['0-9'] + [chr(i) for i in range(65, 91)]  # 0-9, A-Z
+
+for letter in alphabet:
+    try:
+        # Find and click the letter/tab
+        link = driver.find_element(By.LINK_TEXT, letter)
+        link.click()
+        time.sleep(1)
+        
+        # Extract terms and definitions (adjust selectors as per actual site)
+        terms = driver.find_elements(By.CSS_SELECTOR, ".term")  # example class
+        definitions = driver.find_elements(By.CSS_SELECTOR, ".definition")  # example class
+        
+        glossary_data[letter] = []
+        for t, d in zip(terms, definitions):
+            glossary_data[letter].append({
+                "term": t.text,
+                "definition": d.text
+            })
+    except Exception as e:
+        print(f"Error with {letter}: {e}")
+
+# Save to JSON
+with open("glossary.json", "w", encoding="utf-8") as f:
+    json.dump(glossary_data, f, ensure_ascii=False, indent=2)
+
+# Clean up
+driver.quit()
