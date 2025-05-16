@@ -1,0 +1,46 @@
+import * as XLSX from 'xlsx';
+
+type DataMap = { [key: string]: any };
+
+function getReferencedDataMap(
+  file: string,
+  sheetName: string | null,
+  data: DataMap
+): DataMap {
+  try {
+    const environment = getEnvironment().toLowerCase();
+    let tableName = String(data[`${environment}-key`] || "").replace("#", "");
+
+    if (!sheetName || !tableName || tableName === "null") {
+      return data;
+    }
+
+    const objArray = getTableDataAsMap(file, tableName, sheetName);
+    const dataMap: DataMap = objArray[0][0];
+    return dataMap;
+
+  } catch (e: any) {
+    console.error("Exception occurred:", e.message);
+    return data;
+  }
+}
+
+function getEnvironment(): string {
+  return "dev"; // Example stub
+}
+
+function getTableDataAsMap(file: string, tableName: string, sheetName: string): DataMap[][] {
+  const workbook = XLSX.readFile(file);
+  const sheet = workbook.Sheets[sheetName];
+  const jsonData = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+  for (const row of jsonData) {
+    if (String(row[0]).replace("#", "") === tableName) {
+      const key = row[1];
+      const value = row[2];
+      return [[{ [key]: value }]];
+    }
+  }
+
+  return [[{}]];
+}
