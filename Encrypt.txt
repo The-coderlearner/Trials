@@ -1,0 +1,32 @@
+import * as crypto from 'crypto';
+
+// You should store these securely, e.g., in environment variables
+const algorithm = 'aes-256-cbc';
+const secretKey = crypto.createHash('sha256').update('your-secret-key').digest();
+const iv = crypto.randomBytes(16); // Initialization vector
+
+// Encrypt function
+function encrypt(text: string): string {
+  const cipher = crypto.createCipheriv(algorithm, secretKey, iv);
+  const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()]);
+  return iv.toString('hex') + ':' + encrypted.toString('hex');
+}
+
+// Decrypt function
+function decrypt(encryptedText: string): string {
+  const [ivHex, encryptedData] = encryptedText.split(':');
+  const ivBuffer = Buffer.from(ivHex, 'hex');
+  const encryptedBuffer = Buffer.from(encryptedData, 'hex');
+
+  const decipher = crypto.createDecipheriv(algorithm, secretKey, ivBuffer);
+  const decrypted = Buffer.concat([decipher.update(encryptedBuffer), decipher.final()]);
+  return decrypted.toString('utf8');
+}
+
+// Example usage
+const password = 'MySecretPassword!';
+const encrypted = encrypt(password);
+const decrypted = decrypt(encrypted);
+
+console.log('Encrypted:', encrypted);
+console.log('Decrypted:', decrypted);
