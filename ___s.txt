@@ -1,0 +1,73 @@
+from bs4 import BeautifulSoup
+
+def parse_table(table):
+    rows = table.find_all("tr")
+    if not rows:
+        return []
+
+    headers = [cell.get_text(strip=True) for cell in rows[0].find_all(["th", "td"])]
+    data = []
+    for row in rows[1:]:
+        values = [cell.get_text(strip=True) for cell in row.find_all("td")]
+        if values:
+            data.append(dict(zip(headers, values)))
+    return data
+
+def parse_list(list_element):
+    result = []
+    for li in list_element.find_all("li", recursive=False):
+        text = li.get_text(strip=True)
+        # For nested lists/tables inside this li, parse them recursively by string
+        nested_lists = li.find_all(["ul", "ol"], recursive=False)
+        nested_tables = li.find_all("table", recursive=False)
+
+        nested_content = []
+        for nl in nested_lists:
+            nested_content.append({"list": parse_list(nl)})
+        for nt in nested_tables:
+            nested_content.append({"table": parse_table(nt)})
+
+        if nested_content:
+            result.append({"text": text, "nested": nested_content})
+        else:
+            result.append(text)
+    return result
+
+def recursive_parse_html_string(html_string):
+    soup = BeautifulSoup(html_string, "html.parser")
+
+    results = []
+
+    # Find all top-level tables and lists in the string
+    tables = soup.find_all("table", recursive=False)
+    lists = soup.find_all(["ul", "ol"], recursive=False)
+
+    for table in tables:
+        results.append({"table": parse_table(table)})
+
+    for lst in lists:
+        results.append({"list": parse_list(lst)})
+
+    # For anything else (like divs or sections), parse their inner HTML recursively as string
+    # For simplicity here, we ignore those or you can add more logic
+
+    return results
+
+# Example usage:
+html_string = """
+<div>
+  <ul>
+    <li>Item 1
+      <table>
+        <tr><td>Cell 1</td><td>Cell 2</td></tr>
+        <tr><td>Cell 3</td><td>Cell 4</td></tr>
+      </table>
+    </li>
+    <li>Item 2</li>
+  </ul>
+</div>
+"""
+
+result = recursive_parse_html_string(html_string)
+import json
+print(json.dumps(result, indent=2))
