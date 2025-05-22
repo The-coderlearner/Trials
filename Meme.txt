@@ -1,0 +1,43 @@
+def parse_list(list_element):
+    result = []
+    for li in list_element.find_all("li", recursive=False):
+        item = {"text": li.get_text(strip=True)}
+
+        # Check for nested lists or tables directly inside this <li>
+        nested_lists = li.find_all(["ul", "ol"], recursive=False)
+        nested_tables = li.find_all("table", recursive=False)
+
+        if nested_lists or nested_tables:
+            nested_content = []
+            for nl in nested_lists:
+                nested_content.append({"list": parse_list(nl)})
+            for nt in nested_tables:
+                nested_content.append({"table": parse_table(nt)})
+            item["nested"] = nested_content
+
+        result.append(item)
+    return result
+
+def recursive_parse(element):
+    """
+    Recursively parse element's children looking for tables and lists,
+    building nested JSON.
+    """
+    result = []
+
+    for child in element.children:
+        if not hasattr(child, "name"):  # skip text nodes
+            continue
+
+        if child.name == "table":
+            result.append({"table": parse_table(child)})
+
+        elif child.name in ["ul", "ol"]:
+            result.append({"list": parse_list(child)})
+
+        else:
+            nested = recursive_parse(child)
+            if nested:
+                result.extend(nested)
+
+    return result
