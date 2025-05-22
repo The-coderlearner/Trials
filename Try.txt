@@ -1,0 +1,101 @@
+from bs4 import BeautifulSoup, Tag
+
+def parse_table(table):
+    rows = table.find_all("tr")
+    if not rows:
+        return []
+
+    headers = [cell.get_text(strip=True) for cell in rows[0].find_all(["th", "td"])]
+    data = []
+    for row in rows[1:]:
+        values = [cell.get_text(strip=True) for cell in row.find_all("td")]
+        if values:
+            data.append(dict(zip(headers, values)))
+    return data
+
+def parse_list(list_element):
+    result = []
+    for li in list_element.find_all("li", recursive=False):
+        text = li.get_text(strip=True)
+        nested_lists = li.find_all(["ul", "ol"], recursive=False)
+        nested_tables = li.find_all("table", recursive=False)
+
+        nested_content = []
+        for nl in nested_lists:
+            nested_content.append({"list": parse_list(nl)})
+        for nt in nested_tables:
+            nested_content.append({"table": parse_table(nt)})
+
+        if nested_content:
+            result.append({"text": text, "nested": nested_content})
+        else:
+            result.append(text)
+    return result
+
+def recursive_parse_with_find(html_string):
+    soup = BeautifulSoup(html_string, "html.parser")
+    results = []
+
+    current = soup
+
+    while True:
+        # Find first table or list starting from current
+        next_table = current.find("table")
+        next_list = current.find(["ul", "ol"])
+
+        # Determine which one comes first in document order
+        if next_table and next_list:
+            # Compare positions: find which is earlier in the document
+            if next_table.sourcepos < next_list.sourcepos:
+                next_elem = next_table
+            else:
+                next_elem = next_list
+        else:
+            next_elem = next_table or next_list
+
+        if not next_elem:
+            break
+
+        if next_elem.name == "table":
+            results.append({"table": parse_table(next_elem)})
+        else:
+            results.append({"list": parse_list(next_elem)})
+
+        # Move current pointer past this element to find next
+        # Use .next_sibling if possible or remove parsed element and continue
+        next_after = next_elem.find_next_sibling()
+        if next_after:
+            current = next_after
+        else:
+            # If no next sibling, move up to parent and try parent's next sibling
+            parent = next_elem.parent
+            while parent and not parent.find_next_sibling():
+                parent = parent.parent
+            if parent:
+                current = parent.find_next_sibling()
+            else:
+                break
+
+    return results
+
+# Example usage:
+html_string = """
+<div>
+  <ul>
+    <li>Item 1
+      <table>
+        <tr><td>Cell 1</td><td>Cell 2</td></tr>
+        <tr><td>Cell 3</td><td>Cell 4</td></tr>
+      </table>
+    </li>
+    <li>Item 2</li>
+  </ul>
+  <table>
+    <tr><td>A</td><td>B</td></tr>
+  </table>
+</div>
+"""
+
+import json
+result = recursive_parse_with_find(html_string)
+print(json.dumps(result, indent=2))
