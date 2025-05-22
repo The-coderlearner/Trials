@@ -1,0 +1,58 @@
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from bs4 import BeautifulSoup
+import json
+import time
+
+def parse_table(table):
+    rows = table.find_all("tr")
+    if not rows:
+        return []
+
+    headers = [cell.get_text(strip=True) for cell in rows[0].find_all("td")]
+    data = []
+    for row in rows[1:]:
+        values = [cell.get_text(strip=True) for cell in row.find_all("td")]
+        if values:
+            data.append(dict(zip(headers, values)))
+    return data
+
+def parse_list(list_element):
+    result = []
+    for li in list_element.find_all("li", recursive=False):
+        text = li.get_text(strip=True)
+        sublists = li.find_all(["ul", "ol"], recursive=False)
+
+        if sublists:
+            nested = []
+            for sublist in sublists:
+                nested += [item.get_text(strip=True) for item in sublist.find_all("li")]
+            result.append((text, *nested))
+        else:
+            result.append(text)
+    return result
+
+def scrape_to_json(url):
+    service = Service()  # or specify path: Service("/path/to/chromedriver")
+    options = webdriver.ChromeOptions()
+    options.add_argument('--headless')
+    driver = webdriver.Chrome(service=service, options=options)
+
+    driver.get(url)
+    time.sleep(2)  # Consider using WebDriverWait for production
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+    driver.quit()
+
+    tables = soup.find_all("table")
+    lists = soup.find_all(["ul", "ol"])
+
+    return {
+        "tables": [parse_table(tbl) for tbl in tables],
+        "lists": [parse_list(lst) for lst in lists]
+    }
+
+# Usage
+if __name__ == "__main__":
+    url = "https://example.com"  # Replace with actual URL
+    result = scrape_to_json(url)
+    print(json.dumps(result, indent=2))
