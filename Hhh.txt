@@ -1,0 +1,55 @@
+import json
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Extract text recursively
+def extract_text(obj):
+    texts = []
+    if isinstance(obj, dict):
+        for v in obj.values():
+            texts.extend(extract_text(v))
+    elif isinstance(obj, list):
+        for item in obj:
+            texts.extend(extract_text(item))
+    elif isinstance(obj, str):
+        texts.append(obj)
+    return texts
+
+# Load both JSON files
+with open('file1.json') as f1:
+    data1 = json.load(f1)
+
+with open('file2.json') as f2:
+    data2 = json.load(f2)
+
+# Extract all rows from all tables under summary > Tables
+tables1 = data1.get("summary", {}).get("Tables", [])
+tables2 = data2.get("summary", {}).get("Tables", [])
+
+# Flatten all rows from all tables
+rows1 = [row for table in tables1 for row in table]
+rows2 = [row for table in tables2 for row in table]
+
+# Turn each row into a document (string)
+documents1 = [" ".join(extract_text(row)) for row in rows1]
+documents2 = [" ".join(extract_text(row)) for row in rows2]
+
+# Combine all documents for vectorization
+all_documents = documents1 + documents2
+
+# TF-IDF vectorization
+vectorizer = TfidfVectorizer()
+tfidf_matrix = vectorizer.fit_transform(all_documents)
+
+# Compute cosine similarity
+similarity_matrix = cosine_similarity(tfidf_matrix)
+
+# Offset to access documents2 in combined matrix
+offset = len(documents1)
+
+# Compare each row from file1 to each row from file2
+print("Similarity between rows of all tables from File1 and File2:")
+for i, doc1 in enumerate(documents1):
+    for j, doc2 in enumerate(documents2):
+        similarity = similarity_matrix[i][offset + j]
+        print(f"File1 Row {i} <-> File2 Row {j}: Similarity = {similarity:.4f}")
