@@ -1,0 +1,40 @@
+import json
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Recursive function to collect all strings from nested dicts/lists
+def extract_text(obj):
+    texts = []
+    if isinstance(obj, dict):
+        for value in obj.values():
+            texts.extend(extract_text(value))
+    elif isinstance(obj, list):
+        for item in obj:
+            texts.extend(extract_text(item))
+    elif isinstance(obj, str):
+        texts.append(obj)
+    return texts
+
+# Load JSON data from two files
+with open('file1.json') as f1:
+    data1 = json.load(f1)
+
+with open('file2.json') as f2:
+    data2 = json.load(f2)
+
+# Extract and combine text from each file into a single string
+doc1 = " ".join(extract_text(data1))
+doc2 = " ".join(extract_text(data2))
+
+documents = [doc1, doc2]
+
+# Convert to TF-IDF
+vectorizer = TfidfVectorizer()
+tfidf_matrix = vectorizer.fit_transform(documents)
+
+# Compute cosine similarity
+similarity_matrix = cosine_similarity(tfidf_matrix)
+
+# Display similarity
+print("Cosine Similarity Matrix:")
+print(similarity_matrix)
