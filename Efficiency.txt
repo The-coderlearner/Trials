@@ -1,0 +1,36 @@
+import os
+import json
+from collections import defaultdict
+from itertools import combinations
+
+# STEP 1: Load and group sections per file
+json_dir = "./json_files"  # change to your folder
+
+# Structure: title -> section_id -> list of entries
+file_sections = defaultdict(lambda: defaultdict(list))
+
+for filename in os.listdir(json_dir):
+    if filename.endswith(".json"):
+        with open(os.path.join(json_dir, filename), "r", encoding="utf-8") as f:
+            data = json.load(f)
+            for entry in data:
+                title = entry["Title"]
+                section = entry["section"]
+                file_sections[title][section].append(entry)
+
+# STEP 2: Extract text per section (only once)
+# Structure: title -> section_id -> extracted text
+section_texts = defaultdict(dict)
+
+for title, sections in file_sections.items():
+    for section_id, entries in sections.items():
+        section_texts[title][section_id] = extract_text(entries)  # Your custom function
+
+# STEP 3: Compare only once for each unique file pair and each section pair
+for title1, title2 in combinations(section_texts.keys(), 2):  # All unique file pairs
+    sections1 = section_texts[title1]
+    sections2 = section_texts[title2]
+
+    for section_id1, text1 in sections1.items():
+        for section_id2, text2 in sections2.items():
+            compare(text1, text2)  # Your existing compare() function
